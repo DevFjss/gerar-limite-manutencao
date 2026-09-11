@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Remessa, Cartão Manutenção, CDF</title>
+  <style>
+    :root {
+      --bg-slate: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border-color: #cbd5e1;
+      
+      /* Cores e Gradientes */
+      --sidebar-bg: linear-gradient(180deg, #1e3a8a 0%, #0f172a 100%);
+      --input-bg-blue: #f0f7ff;
+      --input-border-blue: #93c5fd;
+      --primary-blue: #2563eb;
+      --primary-hover: #1d4ed8;
+      
+      --card-gradient-1: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      --card-gradient-2: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+      --card-gradient-3: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+
+      --danger-color: #dc2626;
+      --success-color: #16a34a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-slate); color: var(--text-main); display: flex; min-height: 100vh; }
+
+    /* Menu Lateral */
+    .sidebar { width: 260px; background: var(--sidebar-bg); color: #ffffff; padding: 1.75rem 1.25rem; display: flex; flex-direction: column; gap: 1.5rem; flex-shrink: 0; box-shadow: 4px 0 12px rgba(0,0,0,0.1); }
+    .sidebar-header { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 2px solid rgba(255,255,255,0.15); padding-bottom: 0.75rem; color: #60a5fa; }
+    .nav-btn, .nav-link { background: transparent; border: none; color: #e2e8f0; padding: 0.85rem 1rem; text-align: left; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+    .nav-btn:hover, .nav-link:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
+    .nav-btn.active { background: #2563eb; color: #ffffff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+
+    /* Main Content */
+    .main-content { flex: 1; padding: 2rem; display: flex; flex-direction: column; gap: 1.75rem; overflow-y: auto; }
+    .header-title { font-size: 1.65rem; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; }
+
+    /* Cards */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+    .card { padding: 1.25rem; border-radius: 12px; color: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.5rem; }
+    .card-1 { background: var(--card-gradient-1); }
+    .card-2 { background: var(--card-gradient-2); }
+    .card-3 { background: var(--card-gradient-3); }
+    .card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; font-weight: 700; }
+    .card .value { font-size: 1.6rem; font-weight: 800; }
+
+    /* Form Container & Relatório Container */
+    .form-container, .relatorio-container { background-color: var(--card-bg); border: 1px solid var(--border-color); padding: 1.75rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 1.5rem; }
+    .relatorio-container { display: none; } /* Oculto por padrão */
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group label { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); }
+    .form-group label.required::after { content: " *"; color: var(--danger-color); }
+
+    /* Inputs Azul Claro */
+    .form-group input, .form-group textarea { 
+      padding: 0.65rem 0.8rem; 
+      border: 1px solid var(--input-border-blue); 
+      background-color: var(--input-bg-blue); 
+      border-radius: 8px; 
+      font-size: 0.92rem; 
+      color: #0f172a; 
+      font-weight: 600;
+      transition: all 0.2s ease-in-out; 
+    }
+    .form-group input:focus, .form-group textarea:focus { 
+      outline: none; 
+      border-color: #2563eb; 
+      background-color: #ffffff; 
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); 
+    }
+
+    .uppercase-input { text-transform: uppercase; }
+
+    /* Textareas */
+    .textarea-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+    .textarea-container { display: flex; flex-direction: column; gap: 0.4rem; }
+    .textarea-container textarea { resize: vertical; min-height: 130px; width: 100%; }
+    .textarea-info { font-size: 0.8rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px dashed #bfdbfe; display: flex; justify-content: space-between; }
+
+    /* Tabela de Relatório */
+    .table-wrapper { overflow-x: auto; max-height: 500px; border: 1px solid var(--border-color); border-radius: 8px; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
+    .report-table th { background-color: #1e293b; color: #ffffff; padding: 0.75rem 0.9rem; position: sticky; top: 0; }
+    .report-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border-color); }
+    .report-table tr:nth-child(even) { background-color: #f8fafc; }
+    .report-table tr:hover { background-color: #f1f5f9; }
+
+    /* Actions Bar */
+    .actions-bar { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; flex-wrap: wrap; border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 0.5rem; }
+    .status-msg { font-size: 0.9rem; font-weight: 700; padding: 0.6rem 1rem; border-radius: 8px; display: none; }
+    .status-msg.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; display: inline-block; }
+    .status-msg.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; display: inline-block; }
+    .status-msg.info { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; display: inline-block; }
+
+    /* Buttons */
+    .btn { padding: 0.7rem 1.4rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-primary { background-color: var(--primary-blue); color: #ffffff; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3); }
+    .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+    .btn-secondary { background-color: #64748b; color: #ffffff; }
+    .btn-secondary:hover { background-color: #475569; }
+    .btn-outline { background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155; }
+    .btn-outline:hover { background-color: #f1f5f9; border-color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <!-- Menu Lateral -->
+  <aside class="sidebar">
+    <div class="sidebar-header">Painel</div>
+    <button class="nav-btn active" id="nav-lancar">Lançar Dados</button>
+    <a href="https://docs.google.com/spreadsheets/d/1Oz7QxC2zUhUbTNozH8inU00RPRPIgq9zCzKGvIqYQZ8/edit?gid=0#gid=0" target="_blank" class="nav-link">Planilha Dados</a>
+    <a href="https://devfjss.github.io/Pesquisar-gerador-manutencao/" target="_blank" class="nav-link">Relatório</a>
+    <a href="https://script.google.com/macros/s/AKfycbyqk2qoHSpDN0rQou5uoGKtU8RTnAuEWbsqnPKRgageFrAJASckRFLvvsfQ-E72espT/exec" target="_blank" class="nav-link">Gerar TXT</a>
+  </aside>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-content">
+    <h1 class="header-title" id="page-title">Gerador de Remessa, Cartão Manutenção, CDF</h1>
+
+    <!-- Dynamic Sum Cards -->
+    <section class="cards-grid" id="cards-section">
+      <div class="card card-1">
+        <h4>Qtd. Código SEC</h4>
+        <div class="value" id="card-count-sec">0</div>
+      </div>
+      <div class="card card-2">
+        <h4>Total Custeio</h4>
+        <div class="value" id="card-sum-custeio">R$ 0,00</div>
+      </div>
+      <div class="card card-3">
+        <h4>Total Capital</h4>
+        <div class="value" id="card-sum-capital">R$ 0,00</div>
+      </div>
+    </section>
+
+    <!-- Formulário -->
+    <form class="form-container" id="remessa-form" onsubmit="return false;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="remessa" class="required">Remessa</label>
+          <input type="text" id="remessa" required>
+        </div>
+        <div class="form-group">
+          <label for="data" class="required">Data</label>
+          <input type="date" id="data" required>
+        </div>
+        <div class="form-group">
+          <label for="finalidade" class="required">Finalidade</label>
+          <input type="text" id="finalidade" class="uppercase-input" required oninput="this.value = this.value.toUpperCase()">
+        </div>
+        <div class="form-group">
+          <label for="processo">Processo</label>
+          <input type="text" id="processo">
+        </div>
+        <div class="form-group">
+          <label for="acao">Ação</label>
+          <input type="text" id="acao">
+        </div>
+        <div class="form-group">
+          <label for="subfonte">Subfonte</label>
+          <input type="text" id="subfonte" maxlength="6" placeholder="Máx. 6 car.">
+        </div>
+        <div class="form-group">
+          <label for="deputado">Deputado</label>
+          <input type="text" id="deputado" class="uppercase-input" oninput="this.value = this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <!-- Textareas e Subtotais -->
+      <div class="textarea-grid">
+        <div class="textarea-container">
+          <div class="form-group">
+            <label for="codigo-sec">Código SEC (Máx. 7 dígitos)</label>
+            <textarea id="codigo-sec" placeholder="Cole 1 código por linha..."></textarea>
+          </div>
+          <div class="textarea-info">
+            <span>Qtd: <b id="sec-qtd">0</b></span>
+          </div>
+        </div>
+
+        <div class="textarea-container">
+          <div class="form-group">
+            <label for="valor-custeio">Valor Custeio</label>
+            <textarea id="valor-custeio" placeholder="1 valor por linha..."></textarea>
+          </div>
+          <div class="textarea-info">
+            <span>Qtd: <b id="custeio-qtd">0</b></span>
+            <span>Soma: <b id="custeio-soma">R$ 0,00</b></span>
+          </div>
+        </div>
+
+        <div class="textarea-container">
+          <div class="form-group">
+            <label for="valor-capital">Valor Capital</label>
+            <textarea id="valor-capital" placeholder="1 valor por linha..."></textarea>
+          </div>
+          <div class="textarea-info">
+            <span>Qtd: <b id="capital-qtd">0</b></span>
+            <span>Soma: <b id="capital-soma">R$ 0,00</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Ações -->
+      <div class="actions-bar">
+        <div id="status-msg" class="status-msg"></div>
+        <button type="button" class="btn btn-outline" id="btn-test">Testar Conexão</button>
+        <button type="button" class="btn btn-secondary" id="btn-clear">Limpar</button>
+        <button type="button" class="btn btn-primary" id="btn-send">Enviar Dados</button>
+      </div>
+    </form>
+
+    <!-- Tabela do Relatório -->
+    <section class="relatorio-container" id="relatorio-section">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Dados Enviados para a Planilha</h2>
+        <button type="button" class="btn btn-primary" id="btn-refresh-report">Atualizar Relatório</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="report-table">
+          <thead>
+            <tr id="report-thead-tr">
+              <th>Carregando...</th>
+            </tr>
+          </thead>
+          <tbody id="report-tbody">
+            <tr><td>Clique em "Atualizar Relatório" se os dados não carregarem.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Mapeamento de Subfonte para Deputado conforme a imagem fornecida
+    const deputadosMap = {
+      '500067': 'ALEX DA PIATÃ',
+      '500097': 'EDUARDO ALENCAR',
+      '500038': 'MARIA DEL CARMEN',
+      '500098': 'HILTON COELHO',
+      '500100': 'JÚNIOR MUNIZ',
+      '500112': 'ROBINSON ALMEIDA',
+      '500120': 'BINHO GALINHA',
+      '500132': 'LUDMILLA FISCINA',
+      '500141': 'SOANE GALVÃO',
+      '5514':   'ADOLFO MENEZES',
+      '500108': 'OLIVIA SANTANA',
+      '500131': 'LUCIANO ARAUJO',
+      '500122': 'CLAÚDIA OLIVEIRA',
+      '500019': 'FABRÍCIO FALCÃO',
+      '500138': 'PATRICK LOPES',
+      '500063': 'ZÉ RAIMUNDO FONTES',
+      '500069': 'ANTONIO HENRIQUE JUNIOR',
+      '500103': 'KÁTIA OLIVEIRA',
+      '500143': 'RADIOVALDO COSTA',
+      '500054': 'ROSEMBERG PINTO',
+      '500087': 'VITOR BONFIM',
+      '500070': 'BOBÔ'
+    };
+
+    // Configurações Globais Integradas
+    const CONFIG = {
+      DEPLOY_URL: 'https://script.google.com/macros/s/AKfycbyTlJLzjCCKZlQXnpvS0cEOgiCL9BEokh1EkJUi9O_J5L96X53u-6ga93MduY5FIP3w/exec',
+      SPREADSHEET_ID: '1Oz7QxC2zUhUbTNozH8inU00RPRPIgq9zCzKGvIqYQZ8'
+    };
+
+    const secInput = document.getElementById('codigo-sec');
+    const custeioInput = document.getElementById('valor-custeio');
+    const capitalInput = document.getElementById('valor-capital');
+    const subfonteInput = document.getElementById('subfonte');
+    const deputadoInput = document.getElementById('deputado');
+
+    // Preenchimento automático ou limpeza do Deputado ao alterar a Subfonte
+    subfonteInput.addEventListener('input', function() {
+      const valorDigitado = this.value.trim();
+      if (deputadosMap[valorDigitado]) {
+        deputadoInput.value = deputadosMap[valorDigitado];
+      } else {
+        deputadoInput.value = '';
+      }
+    });
+
+    // Limita Código SEC a 7 dígitos por linha
+    secInput.addEventListener('input', function() {
+      let lines = this.value.split('\n');
+      let sanitized = lines.map(line => line.replace(/\D/g, '').slice(0, 7));
+      this.value = sanitized.join('\n');
+      updateCalculations();
+    });
+
+    function parseLines(val) {
+      if (!val) return [];
+      return val.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    }
+
+    function parseCurrencyNumber(val) {
+      if (!val) return 0;
+      let cleanVal = val.replace(/R\$\s?/, '').replace(/\s/g, '');
+      cleanVal = cleanVal.replace(/\./g, '').replace(',', '.');
+      let num = parseFloat(cleanVal);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function sumArray(arr) {
+      return arr.reduce((acc, curr) => acc + parseCurrencyNumber(curr), 0);
+    }
+
+    function formatBRL(val) {
+      return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function updateCalculations() {
+      const secLines = parseLines(secInput.value);
+      const custeioLines = parseLines(custeioInput.value);
+      const capitalLines = parseLines(capitalInput.value);
+
+      const custeioSum = sumArray(custeioLines);
+      const capitalSum = sumArray(capitalLines);
+
+      document.getElementById('card-count-sec').innerText = secLines.length;
+      document.getElementById('card-sum-custeio').innerText = formatBRL(custeioSum);
+      document.getElementById('card-sum-capital').innerText = formatBRL(capitalSum);
+
+      document.getElementById('sec-qtd').innerText = secLines.length;
+      document.getElementById('custeio-qtd').innerText = custeioLines.length;
+      document.getElementById('custeio-soma').innerText = formatBRL(custeioSum);
+      document.getElementById('capital-qtd').innerText = capitalLines.length;
+      document.getElementById('capital-soma').innerText = formatBRL(capitalSum);
+    }
+
+    [secInput, custeioInput, capitalInput].forEach(el => {
+      el.addEventListener('input', updateCalculations);
+      el.addEventListener('keyup', updateCalculations);
+      el.addEventListener('paste', () => setTimeout(updateCalculations, 50));
+    });
+
+    function showStatus(msg, type) {
+      const el = document.getElementById('status-msg');
+      el.className = `status-msg ${type}`;
+      el.innerText = msg;
+    }
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      document.getElementById('remessa-form').reset();
+      updateCalculations();
+      showStatus('Todos os campos foram limpos.', 'info');
+    });
+
+    // Requisição genérica via Fetch (Suporta execução local e WebApp)
+    function executeApiCall(actionPayload) {
+      return fetch(CONFIG.DEPLOY_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(actionPayload)
+      }).then(res => res.json());
+    }
+
+    // Carregar dados do relatório da Planilha
+    function loadReportData() {
+      const tbody = document.getElementById('report-tbody');
+      const theadTr = document.getElementById('report-thead-tr');
+      tbody.innerHTML = '<tr><td colspan="10">Buscando dados da planilha...</td></tr>';
+
+      const actionPayload = { action: 'getReport', spreadsheetId: CONFIG.SPREADSHEET_ID };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(renderReportTable)
+          .withFailureHandler(err => tbody.innerHTML = `<tr><td colspan="10">Erro: ${err.message}</td></tr>`)
+          .getReportData(CONFIG.SPREADSHEET_ID);
+      } else {
+        executeApiCall(actionPayload)
+          .then(res => renderReportTable(res.data))
+          .catch(err => tbody.innerHTML = `<tr><td colspan="10">Falha ao buscar relatório: ${err}</td></tr>`);
+      }
+    }
+
+    function renderReportTable(data) {
+      const tbody = document.getElementById('report-tbody');
+      const theadTr = document.getElementById('report-thead-tr');
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10">Nenhum dado encontrado na planilha.</td></tr>';
+        return;
+      }
+
+      // Cabeçalho da tabela (Linha 1)
+      theadTr.innerHTML = data[0].map(col => `<th>${col}</th>`).join('');
+
+      // Linhas da tabela
+      tbody.innerHTML = '';
+      for (let i = 1; i < data.length; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = data[i].map(val => `<td>${val !== null ? val : ''}</td>`).join('');
+        tbody.appendChild(tr);
+      }
+    }
+
+    document.getElementById('btn-refresh-report').addEventListener('click', loadReportData);
+
+    // Testar Conexão
+    document.getElementById('btn-test').addEventListener('click', () => {
+      showStatus('Testando conexão...', 'info');
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => showStatus(res, 'success'))
+          .withFailureHandler(err => showStatus('Erro: ' + err.message, 'error'))
+          .testConnection();
+      } else {
+        executeApiCall({ action: 'test', spreadsheetId: CONFIG.SPREADSHEET_ID })
+          .then(res => showStatus(res.message, 'success'))
+          .catch(err => showStatus('Falha de comunicação: ' + err, 'error'));
+      }
+    });
+
+    // Enviar Dados
+    document.getElementById('btn-send').addEventListener('click', () => {
+      const form = document.getElementById('remessa-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const secQtd = parseLines(secInput.value).length;
+      const custeioQtd = parseLines(custeioInput.value).length;
+      const capitalQtd = parseLines(capitalInput.value).length;
+
+      if (secQtd === 0) {
+        showStatus('Informe ao menos um Código SEC.', 'error');
+        return;
+      }
+
+      if (custeioQtd > 0 && custeioQtd !== secQtd) {
+        showStatus(`Qtd. Custeio (${custeioQtd}) difere dos Códigos SEC (${secQtd}).`, 'error');
+        return;
+      }
+
+      if (capitalQtd > 0 && capitalQtd !== secQtd) {
+        showStatus(`Qtd. Capital (${capitalQtd}) difere dos Códigos SEC (${secQtd}).`, 'error');
+        return;
+      }
+
+      showStatus('Enviando registros em lote...', 'info');
+
+      const payload = {
+        spreadsheetId: CONFIG.SPREADSHEET_ID,
+        remessa: document.getElementById('remessa').value,
+        data: document.getElementById('data').value,
+        finalidade: document.getElementById('finalidade').value,
+        processo: document.getElementById('processo').value,
+        acao: document.getElementById('acao').value,
+        subfonte: document.getElementById('subfonte').value,
+        deputado: document.getElementById('deputado').value,
+        codigosSec: parseLines(secInput.value),
+        valoresCusteio: parseLines(custeioInput.value),
+        valoresCapital: parseLines(capitalInput.value)
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(res => showStatus(res, 'success'))
+          .withFailureHandler(err => showStatus('Erro ao gravar: ' + err.message, 'error'))
+          .processBatchPayload(payload);
+      } else {
+        executeApiCall({ action: 'send', payload: payload })
+          .then(res => showStatus(res.message, 'success'))
+          .catch(err => showStatus('Erro no envio: ' + err, 'error'));
+      }
+    });
+  </script>
+</body>
+</html>
